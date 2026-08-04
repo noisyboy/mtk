@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> Perovskite Sol-Gel Calculator</title>
+    <style>
+        :root {
+            --bg-color: #f4f4f9;
+            --container-bg: #ffffff;
+            --primary-color: #2c3e50;
+            --accent-color: #5988d4;
+            --danger-color: #e74c3c;
+            --agent-color: #16a085;
+            --border-radius: 8px;
+        }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--primary-color);
+            display: flex;
+            justify-content: center;
+            padding: 2rem;
+            margin: 0;
+        }
+        .calculator-container {
+            background: var(--container-bg);
+            padding: 2rem;
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 650px;
+        }
+        h2 { margin-top: 0; border-bottom: 2px solid var(--accent-color); padding-bottom: 0.5rem; }
+        
+        .section-title {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-top: 1.5rem; margin-bottom: 0.5rem; font-weight: bold;
+        }
+        .add-btn {
+            background: #2ecc71; color: white; border: none; padding: 0.3rem 0.8rem;
+            border-radius: 4px; cursor: pointer; font-size: 0.9rem;
+        }
+        .add-btn:hover { background: #27ae60; }
+        .add-agent-btn { background: var(--agent-color); }
+        .add-agent-btn:hover { background: #1abc9c; }
+
+        .row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; align-items: center; }
+        select, input[type="number"] {
+            padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem;
+        }
+        select { flex: 2; }
+        input[type="number"] { flex: 1; }
+        .remove-btn {
+            background: var(--danger-color); color: white; border: none;
+            border-radius: 4px; padding: 0.5rem 0.8rem; cursor: pointer; font-weight: bold;
+        }
+        
+        .mass-input { margin-top: 1.5rem; border-top: 2px solid #eee; padding-top: 1rem; }
+        .mass-input label { font-weight: bold; display: block; margin-bottom: 0.5rem; }
+        .mass-input input { width: 100%; box-sizing: border-box; font-size: 1.1rem; }
+
+        .calc-btn {
+            width: 100%; padding: 1rem; background-color: var(--accent-color);
+            color: white; border: none; border-radius: 4px; font-size: 1.2rem;
+            cursor: pointer; transition: background-color 0.2s; margin-top: 1.5rem;
+            font-weight: bold;
+        }
+        .calc-btn:hover { background-color: #9b59b6; }
+
+        .formula-display {
+            text-align: center; font-size: 1.4rem; margin-bottom: 1rem;
+            padding: 1rem; background: #eee; border-radius: 4px; font-weight: bold;
+        }
+        .warning {
+            color: var(--danger-color); font-size: 0.9rem; text-align: center;
+            margin-top: 0.5rem; min-height: 1.2rem; font-weight: bold;
+        }
+
+        .results {
+            margin-top: 2rem; padding: 1.5rem; background-color: #f9f0ff;
+            border-radius: var(--border-radius); border: 1px solid #e1bee7; display: none;
+        }
+        .result-item {
+            display: flex; justify-content: space-between;
+            margin-bottom: 0.6rem; font-family: monospace; font-size: 1.1rem;
+        }
+        hr { border: 0; border-top: 1px dashed #ccc; margin: 1.5rem 0; }
+        .agent-header { color: var(--agent-color); font-weight: bold; margin-bottom: 0.5rem; }
+    </style>
+</head>
+<body>
+
+<div class="calculator-container">
+    <h2>Experimental Sol-Gel Calculator for Perovskite </h2>
+    
+    <div class="formula-display" id="formula-display">ABO<sub>3</sub></div>
+    <div class="warning" id="stoichiometry-warning"></div>
+
+    <div class="section-title">
+        <span>A-Site Elements (Total: <span id="a-total">1.00</span>)</span>
+        <button class="add-btn" onclick="addRow('a-site')">+ Add A-Site</button>
+    </div>
+    <div id="a-site-container"></div>
+
+    <div class="section-title">
+        <span>B-Site Elements (Total: <span id="b-total">1.00</span>)</span>
+        <button class="add-btn" onclick="addRow('b-site')">+ Add B-Site</button>
+    </div>
+    <div id="b-site-container"></div>
+
+    <div class="section-title">
+        <span>Chelating Agents (Ratio to Total Metals)</span>
+        <button class="add-btn add-agent-btn" onclick="addAgentRow()">+ Add Agent</button>
+    </div>
+    <div id="agent-container"></div>
+
+    <div class="mass-input">
+        <label for="target-mass">Target Pellet Mass (g):</label>
+        <input type="number" id="target-mass" step="0.1" min="0.1" value="5.0">
+    </div>
+
+    <button class="calc-btn" onclick="calculate()">Calculate Reagents</button>
+
+    <div class="results" id="results-box">
+        <h3>Required Masses:</h3>
+        <div id="output-list"></div>
+    </div>
+</div>
+
+<script>
+    // Database (Purity removed from here, as it will now be handled by the UI)
+    const db = {
+        "Sc": { m_el: 44.956,  name: "Sc(NO3)3·4H2O", m_prec: 303.03 },
+        "Y":  { m_el: 88.905,  name: "Y(NO3)3·6H2O",  m_prec: 383.01 },
+        "La": { m_el: 138.905, name: "La(NO3)3·6H2O", m_prec: 433.01 },
+        "Ce": { m_el: 140.116, name: "Ce(NO3)3·6H2O", m_prec: 434.22 },
+        "Pr": { m_el: 140.907, name: "Pr(NO3)3·6H2O", m_prec: 435.01 },
+        "Nd": { m_el: 144.242, name: "Nd(NO3)3·6H2O", m_prec: 438.35 },
+        "Sm": { m_el: 150.360, name: "Sm(NO3)3·6H2O", m_prec: 444.47 },
+        "Eu": { m_el: 151.964, name: "Eu(NO3)3·6H2O", m_prec: 446.06 },
+        "Gd": { m_el: 157.250, name: "Gd(NO3)3·6H2O", m_prec: 451.36 },
+        "Tb": { m_el: 158.925, name: "Tb(NO3)3·6H2O", m_prec: 453.03 },
+        "Dy": { m_el: 162.500, name: "Dy(NO3)3·5H2O", m_prec: 438.59 },
+        "Ho": { m_el: 164.930, name: "Ho(NO3)3·5H2O", m_prec: 441.01 },
+        "Er": { m_el: 167.259, name: "Er(NO3)3·5H2O", m_prec: 443.35 },
+        "Tm": { m_el: 168.934, name: "Tm(NO3)3·5H2O", m_prec: 445.02 },
+        "Yb": { m_el: 173.045, name: "Yb(NO3)3·5H2O", m_prec: 449.13 },
+        "Lu": { m_el: 174.967, name: "Lu(NO3)3·6H2O", m_prec: 469.06 },
+        
+        "Sr": { m_el: 87.620,  name: "Sr(NO3)2",      m_prec: 211.63 },
+        "Ca": { m_el: 40.078,  name: "Ca(NO3)2·4H2O", m_prec: 236.15 },
+        "Ba": { m_el: 137.327, name: "Ba(NO3)2",      m_prec: 261.34 },
+        "Na": { m_el: 22.990,  name: "NaNO3",         m_prec: 84.99  },
+        "K":  { m_el: 39.098,  name: "KNO3",          m_prec: 101.10 },
+        "Ag": { m_el: 107.868, name: "AgNO3",         m_prec: 169.87 },
+        "Pb": { m_el: 207.200, name: "Pb(NO3)2",      m_prec: 331.20 },
+
+        "Ti": { m_el: 47.867,  name: "Ti isopropoxide",m_prec: 284.22},
+        "V":  { m_el: 50.942,  name: "NH4VO3",        m_prec: 116.98 },
+        "Cr": { m_el: 51.996,  name: "Cr(NO3)3·9H2O", m_prec: 400.15 },
+        "Mn": { m_el: 54.938,  name: "Mn(NO3)2·4H2O", m_prec: 251.01 },
+        "Fe": { m_el: 55.845,  name: "Fe(NO3)3·9H2O", m_prec: 404.00 },
+        "Co": { m_el: 58.933,  name: "Co(NO3)2·6H2O", m_prec: 291.03 },
+        "Ni": { m_el: 58.693,  name: "Ni(NO3)2·6H2O", m_prec: 290.79 },
+        "Cu": { m_el: 63.546,  name: "Cu(NO3)2·3H2O", m_prec: 241.60 },
+        "Zn": { m_el: 65.380,  name: "Zn(NO3)2·6H2O", m_prec: 297.49 },
+        "Zr": { m_el: 91.224,  name: "ZrO(NO3)2·2H2O",m_prec: 267.26 },
+        "Ru": { m_el: 101.070, name: "Ru(NO) (NO3)3", m_prec: 317.09 } 
+    };
+
+    const agentsDb = {
+        "Citric Acid (Anhydrous)": { mass: 192.12 },
+        "Citric Acid (Monohydrate)": { mass: 210.14 },
+        "EDTA": { mass: 292.24 },
+        "Tartaric Acid": { mass: 150.09 },
+        "Glycine": { mass: 75.07 },
+        "Urea": { mass: 60.06 }
+    };
+
+    const aSiteOptions = ["La", "Ce", "Pr", "Nd", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Y", "Sc", "Sr", "Ca", "Ba", "Na", "K", "Ag", "Pb"];
+    const bSiteOptions = ["Mn", "Co", "Fe", "Ni", "Cu", "Zn", "Ti", "V", "Cr", "Zr", "Ru"];
+    const M_O = 15.999;
+
+    function createSelect(options, defaultVal) {
+        return options.map(opt => `<option value="${opt}" ${opt === defaultVal ? 'selected' : ''}>${opt}</option>`).join('');
+    }
+
+    function addRow(containerId, defaultElem = null, defaultCoeff = 0.0) {
+        const container = document.getElementById(`${containerId}-container`);
+        const row = document.createElement('div');
+        row.className = 'row';
+        
+        const options = containerId === 'a-site' ? aSiteOptions : bSiteOptions;
+        const initialElem = defaultElem || options[0];
+
+        // Added a new input specifically for Purity %
+        row.innerHTML = `
+            <select onchange="updateUI()">${createSelect(options, initialElem)}</select>
+            <input type="number" class="coeff-input" step="0.01" min="0" value="${defaultCoeff}" title="Coefficient (e.g. 0.7)" oninput="updateUI()">
+            <input type="number" class="purity-input" step="0.1" min="1" max="100" value="99.0" title="Purity % (e.g. 99.0)">
+            <button class="remove-btn" onclick="this.parentElement.remove(); updateUI()">X</button>
+        `;
+        container.appendChild(row);
+        updateUI();
+    }
+
+    function addAgentRow(defaultAgent = "Citric Acid (Anhydrous)", defaultRatio = 1.0) {
+        const container = document.getElementById('agent-container');
+        const row = document.createElement('div');
+        row.className = 'row';
+        
+        const options = Object.keys(agentsDb);
+        row.innerHTML = `
+            <select>${createSelect(options, defaultAgent)}</select>
+            <input type="number" step="0.1" min="0" value="${defaultRatio}" title="Ratio relative to total metal moles">
+            <button class="remove-btn" onclick="this.parentElement.remove()">X</button>
+        `;
+        container.appendChild(row);
+    }
+
+    function getElements(containerId) {
+        const rows = document.querySelectorAll(`#${containerId}-container .row`);
+        let elements = {};
+        let total = 0;
+
+        rows.forEach(row => {
+            const sym = row.querySelector('select').value;
+            const val = parseFloat(row.querySelector('.coeff-input').value) || 0;
+            const purity = parseFloat(row.querySelector('.purity-input').value) || 100;
+            
+            if (val > 0) {
+                // We now store an array of objects to handle duplicate elements with potentially different purities, 
+                // though usually you'd just add the elements once.
+                if (!elements[sym]) elements[sym] = { val: 0, purity: purity };
+                elements[sym].val += val;
+                elements[sym].purity = purity; // takes the purity of the latest entry
+                total += val;
+            }
+        });
+        return { elements, total };
+    }
+
+    function getAgents() {
+        const rows = document.querySelectorAll(`#agent-container .row`);
+        let selectedAgents = [];
+        rows.forEach(row => {
+            const name = row.querySelector('select').value;
+            const ratio = parseFloat(row.querySelector('input').value) || 0;
+            if (ratio > 0) selectedAgents.push({ name, ratio });
+        });
+        return selectedAgents;
+    }
+
+    function updateUI() {
+        const aData = getElements('a-site');
+        const bData = getElements('b-site');
+        
+        document.getElementById('a-total').innerText = aData.total.toFixed(2);
+        document.getElementById('b-total').innerText = bData.total.toFixed(2);
+
+        const formatParts = (data) => Object.entries(data).map(([sym, obj]) => `${sym}<sub>${obj.val.toFixed(2)}</sub>`).join('');
+        const formulaStr = formatParts(aData.elements) + formatParts(bData.elements) + "O<sub>3</sub>";
+        document.getElementById('formula-display').innerHTML = formulaStr || "Add elements";
+
+        const warnBox = document.getElementById('stoichiometry-warning');
+        if (Math.abs(aData.total - 1.0) > 0.01 || Math.abs(bData.total - 1.0) > 0.01) {
+            warnBox.innerText = "Warning: A-site or B-site sum does not equal 1.0. (Intentional vacancy?)";
+        } else {
+            warnBox.innerText = "";
+        }
+    }
+
+    function calculate() {
+        const targetMass = parseFloat(document.getElementById('target-mass').value);
+        const aData = getElements('a-site');
+        const bData = getElements('b-site');
+        const agents = getAgents();
+
+        const allElements = { ...aData.elements };
+        for (let [sym, obj] of Object.entries(bData.elements)) {
+            if (!allElements[sym]) {
+                allElements[sym] = { val: obj.val, purity: obj.purity };
+            } else {
+                allElements[sym].val += obj.val;
+            }
+        }
+
+        let targetMolarMass = 3.0 * M_O; 
+        for (const [sym, obj] of Object.entries(allElements)) {
+            targetMolarMass += obj.val * db[sym].m_el;
+        }
+
+        const n_target = targetMass / targetMolarMass;
+        let totalMetalCoeff = aData.total + bData.total;
+        let totalMetalMoles = n_target * totalMetalCoeff;
+        
+        let outputHTML = "";
+
+        // Precursor Calculations
+        for (const [sym, obj] of Object.entries(allElements)) {
+            const data = db[sym];
+            const decimalPurity = obj.purity / 100.0; // Converts user 99.0 input to 0.99
+            
+            // Math divides by the decimal purity from the UI
+            const massNeeded = n_target * obj.val * (data.m_prec / decimalPurity);
+            
+            outputHTML += `
+                <div class="result-item">
+                    <span>${data.name} (${obj.purity}%):</span>
+                    <strong>${massNeeded.toFixed(4)} g</strong>
+                </div>`;
+        }
+
+        // Chelating Agents Calculations
+        if (agents.length > 0) {
+            outputHTML += `<hr><div class="agent-header">Chelating Agents:</div>`;
+            agents.forEach(agent => {
+                const agentData = agentsDb[agent.name];
+                const massNeeded = totalMetalMoles * agent.ratio * agentData.mass;
+                outputHTML += `
+                    <div class="result-item">
+                        <span>${agent.name} (Ratio ${agent.ratio}):</span>
+                        <strong>${massNeeded.toFixed(4)} g</strong>
+                    </div>`;
+            });
+        }
+
+        document.getElementById('output-list').innerHTML = outputHTML;
+        document.getElementById('results-box').style.display = 'block';
+    }
+
+    // Initialize Defaults
+    addRow('a-site', 'La', 0.7);
+    addRow('a-site', 'Sr', 0.3);
+    addRow('b-site', 'Mn', 1.0);
+    addAgentRow('Citric Acid (Anhydrous)', 1.0);
+</script>
+
+</body>
+</html>
