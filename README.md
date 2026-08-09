@@ -11,4 +11,4 @@ A lightweight, interactive stoichiometric calculator designed for condensed matt
 
 ## Usage
 No installation required. Simply download the `.html` file and open it locally in your web browser to start calculating precursor weights for your sample palettes.
-or use it online hosted [here](https://noisboy.qzz.io/solgel)
+or use it online hosted [here](http://noisyboy.qzz.io/solgel/)
