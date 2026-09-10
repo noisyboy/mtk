@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tolerance Factor Calculator</title>
+    <style>
+        :root {
+            --bg-color: #f4f4f9;
+            --container-bg: #ffffff;
+            --primary-color: #2c3e50;
+            --accent-color: #3498db;
+            --danger-color: #e74c3c;
+            --xsite-color: #9b59b6;
+            --success-color: #2ecc71;
+            --border-radius: 8px;
+        }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--primary-color);
+            display: flex;
+            justify-content: center;
+            padding: 2rem;
+            margin: 0;
+        }
+        .calculator-container {
+            background: var(--container-bg);
+            padding: 2rem;
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 750px;
+        }
+        h2 { margin-top: 0; border-bottom: 2px solid var(--accent-color); padding-bottom: 0.5rem; }
+        
+        .section-title {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-top: 1.5rem; margin-bottom: 0.5rem; font-weight: bold;
+        }
+        .add-btn {
+            background: var(--success-color); color: white; border: none; padding: 0.3rem 0.8rem;
+            border-radius: 4px; cursor: pointer; font-size: 0.9rem;
+        }
+        .add-btn:hover { background: #27ae60; }
+        .add-xsite-btn { background: var(--xsite-color); }
+        .add-xsite-btn:hover { background: #8e44ad; }
+
+        .row { 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 0.5rem; 
+            margin-bottom: 0.5rem; 
+            align-items: center; 
+            background: #fdfdfd;
+            padding: 0.5rem;
+            border: 1px solid #eee;
+            border-radius: 4px;
+        }
+        select, input[type="number"], input[type="text"] {
+            padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem;
+            box-sizing: border-box;
+        }
+        .ion-select { flex: 2; min-width: 250px; }
+        .custom-radius { width: 110px; background: #fffde7; border-color: #f1c40f; }
+        .coeff-input { width: 100px; }
+        
+        .remove-btn {
+            background: var(--danger-color); color: white; border: none;
+            border-radius: 4px; padding: 0.5rem 0.8rem; cursor: pointer; font-weight: bold;
+            margin-left: auto;
+        }
+
+        .calc-btn {
+            width: 100%; padding: 1rem; background-color: var(--accent-color);
+            color: white; border: none; border-radius: 4px; font-size: 1.2rem;
+            cursor: pointer; transition: background-color 0.2s; margin-top: 1.5rem;
+            font-weight: bold;
+        }
+        .calc-btn:hover { background-color: #2980b9; }
+
+        .equation-display {
+            text-align: center; font-size: 1.2rem; margin-bottom: 1rem;
+            padding: 1rem; background: #e8f4f8; border-radius: 4px; font-weight: bold;
+            font-family: 'Times New Roman', Times, serif; font-style: italic;
+        }
+        .warning {
+            color: var(--danger-color); font-size: 0.9rem; text-align: center;
+            margin-top: 0.5rem; min-height: 1.2rem; font-weight: bold;
+        }
+
+        .results {
+            margin-top: 2rem; padding: 1.5rem; background-color: #f4f9f4;
+            border-radius: var(--border-radius); border: 1px solid #d5ecd5; display: none;
+        }
+        .result-item {
+            display: flex; justify-content: space-between;
+            margin-bottom: 0.6rem; font-size: 1.1rem;
+        }
+        .final-t {
+            font-size: 1.5rem; font-weight: bold; color: var(--accent-color);
+            text-align: center; margin-top: 1rem; padding-top: 1rem; border-top: 2px dashed #ccc;
+        }
+        .interpretation {
+            text-align: center; font-size: 1rem; color: #555; margin-top: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="calculator-container">
+    <h2>Goldschmidt Tolerance Factor (t)</h2>
+    
+    <div class="equation-display">
+        t = (r<sub>A</sub> + r<sub>X</sub>) / [√2 × (r<sub>B</sub> + r<sub>X</sub>)]
+    </div>
+    <div class="warning" id="stoichiometry-warning"></div>
+
+    <div class="section-title">
+        <span>A-Site Ions (CN=12) - Total Frac: <span id="a-total">1.00</span></span>
+        <button class="add-btn" onclick="addRow('a-site')">+ Add A-Site</button>
+    </div>
+    <div id="a-site-container"></div>
+
+    <div class="section-title">
+        <span>B-Site Ions (CN=6) - Total Frac: <span id="b-total">1.00</span></span>
+        <button class="add-btn" onclick="addRow('b-site')">+ Add B-Site</button>
+    </div>
+    <div id="b-site-container"></div>
+
+    <div class="section-title">
+        <span>X-Site Anions (CN=6) - Total Frac: <span id="x-total">3.00</span></span>
+        <button class="add-btn add-xsite-btn" onclick="addXRow()">+ Add X-Site</button>
+    </div>
+    <div id="x-site-container"></div>
+
+    <button class="calc-btn" onclick="calculate()">Calculate Factor</button>
+
+    <div class="results" id="results-box">
+        <h3>Calculated Effective Radii:</h3>
+        <div id="output-list"></div>
+    </div>
+</div>
+
+<script>
+    // Shannon Effective Ionic Radii Database
+    // Note: r values are in Angstroms (Å)
+    const db = {
+        aSite: {
+            "La3": { name: "La³⁺", r: 1.36 },
+            "Sr2": { name: "Sr²⁺", r: 1.44 },
+            "Ce4": { name: "Ce⁴⁺ (est.)", r: 1.14 },
+            "Ca2": { name: "Ca²⁺", r: 1.34 },
+            "Ba2": { name: "Ba²⁺", r: 1.61 },
+            "Y3":  { name: "Y³⁺ (est.)", r: 1.19 },
+            "Bi3": { name: "Bi³⁺", r: 1.45 },
+            "Pr3": { name: "Pr³⁺", r: 1.30 },
+            "Nd3": { name: "Nd³⁺", r: 1.27 },
+            "Sm3": { name: "Sm³⁺", r: 1.24 },
+            "Eu3": { name: "Eu³⁺", r: 1.23 },
+            "Gd3": { name: "Gd³⁺", r: 1.22 },
+            "Na1": { name: "Na⁺", r: 1.39 },
+            "K1":  { name: "K⁺", r: 1.64 },
+            "Pb2": { name: "Pb²⁺", r: 1.49 }
+        },
+        bSite: {
+            "Mn3HS": { name: "Mn³⁺ (High-Spin)", r: 0.645 },
+            "Mn3LS": { name: "Mn³⁺ (Low-Spin)", r: 0.58 },
+            "Mn4": { name: "Mn⁴⁺", r: 0.53 },
+            "Ti4": { name: "Ti⁴⁺", r: 0.605 },
+            "Ti3": { name: "Ti³⁺", r: 0.67 },
+            "Fe3HS": { name: "Fe³⁺ (High-Spin)", r: 0.645 },
+            "Fe3LS": { name: "Fe³⁺ (Low-Spin)", r: 0.55 },
+            "Co3HS": { name: "Co³⁺ (High-Spin)", r: 0.61 },
+            "Co3LS": { name: "Co³⁺ (Low-Spin)", r: 0.545 },
+            "Ni2": { name: "Ni²⁺", r: 0.69 },
+            "Cu2": { name: "Cu²⁺", r: 0.73 },
+            "Zn2": { name: "Zn²⁺", r: 0.74 },
+            "Zr4": { name: "Zr⁴⁺", r: 0.72 },
+            "Ru4": { name: "Ru⁴⁺", r: 0.62 }
+        },
+        xSite: {
+            "O2": { name: "O²⁻", r: 1.40 },
+            "F1": { name: "F⁻", r: 1.33 },
+            "Cl1": { name: "Cl⁻", r: 1.81 },
+            "Br1": { name: "Br⁻", r: 1.96 },
+            "I1": { name: "I⁻", r: 2.20 }
+        }
+    };
+
+    function createSelect(optionsObj, defaultKey) {
+        let html = '';
+        for (const [key, data] of Object.entries(optionsObj)) {
+            const selected = key === defaultKey ? 'selected' : '';
+            html += `<option value="${key}" ${selected}>${data.name} (${data.r.toFixed(3)} Å)</option>`;
+        }
+        html += `<option value="custom">Custom...</option>`;
+        return html;
+    }
+
+    function addRow(site, defaultKey = null, defaultCoeff = 0.0) {
+        const container = document.getElementById(`${site}-container`);
+        const row = document.createElement('div');
+        row.className = 'row';
+        
+        let dbRef = site === 'a-site' ? db.aSite : db.bSite;
+        if (!defaultKey) defaultKey = Object.keys(dbRef)[0];
+
+        row.innerHTML = `
+            <select class="ion-select" onchange="toggleCustom(this); updateUI()">${createSelect(dbRef, defaultKey)}</select>
+            <input type="number" class="custom-radius" step="0.001" placeholder="Radius (Å)" title="Custom Ionic Radius" style="display: none;" oninput="updateUI()">
+            <input type="number" class="coeff-input" step="0.01" min="0" value="${defaultCoeff}" title="Fractional Occupancy (e.g. 0.7)" oninput="updateUI()">
+            <button class="remove-btn" onclick="this.parentElement.remove(); updateUI()">X</button>
+        `;
+        container.appendChild(row);
+        updateUI();
+    }
+
+    function addXRow(defaultKey = "O2", defaultCoeff = 3.0) {
+        const container = document.getElementById('x-site-container');
+        const row = document.createElement('div');
+        row.className = 'row';
+
+        row.innerHTML = `
+            <select class="ion-select" onchange="toggleCustom(this); updateUI()">${createSelect(db.xSite, defaultKey)}</select>
+            <input type="number" class="custom-radius" step="0.001" placeholder="Radius (Å)" style="display: none;" oninput="updateUI()">
+            <input type="number" class="coeff-input" step="0.01" min="0" value="${defaultCoeff}" title="Fractional Occupancy (e.g. 3.0)" oninput="updateUI()">
+            <button class="remove-btn" onclick="this.parentElement.remove(); updateUI()">X</button>
+        `;
+        container.appendChild(row);
+        updateUI();
+    }
+
+    function toggleCustom(selectElem) {
+        const row = selectElem.closest('.row');
+        const customRadius = row.querySelector('.custom-radius');
+        if (selectElem.value === 'custom') {
+            customRadius.style.display = 'inline-block';
+            selectElem.style.flex = '1';
+        } else {
+            customRadius.style.display = 'none';
+            selectElem.style.flex = '2';
+        }
+    }
+
+    function getSiteData(containerId, dbRef) {
+        const rows = document.querySelectorAll(`#${containerId}-container .row`);
+        let totalFraction = 0;
+        let weightedSum = 0;
+
+        rows.forEach(row => {
+            const selectVal = row.querySelector('.ion-select').value;
+            const fraction = parseFloat(row.querySelector('.coeff-input').value) || 0;
+            let radius = 0;
+
+            if (selectVal === 'custom') {
+                radius = parseFloat(row.querySelector('.custom-radius').value) || 0;
+            } else {
+                radius = dbRef[selectVal].r;
+            }
+
+            if (fraction > 0) {
+                totalFraction += fraction;
+                weightedSum += (fraction * radius);
+            }
+        });
+
+        // Calculate average radius. If totalFraction is 0, avoid NaN
+        const avgRadius = totalFraction > 0 ? (weightedSum / totalFraction) : 0;
+        return { totalFraction, avgRadius };
+    }
+
+    function updateUI() {
+        const aData = getSiteData('a-site', db.aSite);
+        const bData = getSiteData('b-site', db.bSite);
+        const xData = getSiteData('x-site', db.xSite);
+        
+        document.getElementById('a-total').innerText = aData.totalFraction.toFixed(2);
+        document.getElementById('b-total').innerText = bData.totalFraction.toFixed(2);
+        document.getElementById('x-total').innerText = xData.totalFraction.toFixed(2);
+
+        const warnBox = document.getElementById('stoichiometry-warning');
+        let warnings = [];
+        if (Math.abs(aData.totalFraction - 1.0) > 0.01) warnings.push("A-site sum ≠ 1.0");
+        if (Math.abs(bData.totalFraction - 1.0) > 0.01) warnings.push("B-site sum ≠ 1.0");
+        if (Math.abs(xData.totalFraction - 3.0) > 0.01) warnings.push("X-site sum ≠ 3.0");
+        
+        if (warnings.length > 0) {
+            warnBox.innerText = "Warning: " + warnings.join(" | ") + " (Calculations use normalized fractions)";
+        } else {
+            warnBox.innerText = "";
+        }
+    }
+
+    function interpretFactor(t) {
+        if (t > 1.0) return "t > 1.0: Hexagonal or purely trigonal structures likely. A-site cation is too large.";
+        if (t >= 0.9 && t <= 1.0) return "0.9 ≤ t ≤ 1.0: Ideal Cubic perovskite structure likely.";
+        if (t >= 0.71 && t < 0.9) return "0.71 ≤ t < 0.9: Orthorhombic or Rhombohedral distorted structure likely (octahedral tilting).";
+        return "t < 0.71: Perovskite structure unstable. Different crystal phases likely (e.g. Ilmenite).";
+    }
+
+    function calculate() {
+        const aData = getSiteData('a-site', db.aSite);
+        const bData = getSiteData('b-site', db.bSite);
+        const xData = getSiteData('x-site', db.xSite);
+
+        const r_A = aData.avgRadius;
+        const r_B = bData.avgRadius;
+        const r_X = xData.avgRadius;
+
+        if (r_A === 0 || r_B === 0 || r_X === 0) {
+            alert("Please ensure A-site, B-site, and X-site have valid fractional inputs.");
+            return;
+        }
+
+        const t = (r_A + r_X) / (Math.SQRT2 * (r_B + r_X));
+        
+        let outputHTML = `
+            <div class="result-item">
+                <span>Avg A-Site Radius (r<sub>A</sub>):</span>
+                <strong>${r_A.toFixed(4)} Å</strong>
+            </div>
+            <div class="result-item">
+                <span>Avg B-Site Radius (r<sub>B</sub>):</span>
+                <strong>${r_B.toFixed(4)} Å</strong>
+            </div>
+            <div class="result-item">
+                <span>Avg X-Site Radius (r<sub>X</sub>):</span>
+                <strong>${r_X.toFixed(4)} Å</strong>
+            </div>
+            <div class="final-t">
+                t = ${t.toFixed(4)}
+            </div>
+            <div class="interpretation">
+                ${interpretFactor(t)}
+            </div>
+        `;
+
+        document.getElementById('output-list').innerHTML = outputHTML;
+        document.getElementById('results-box').style.display = 'block';
+    }
+
+    // Initialize Defaults from your example: La0.7Sr0.27Ce0.03MnO3 (Mn3+ = 0.76, Mn4+ = 0.24)
+    addRow('a-site', 'La3', 0.7);
+    addRow('a-site', 'Sr2', 0.27);
+    addRow('a-site', 'Ce4', 0.03);
+    
+    addRow('b-site', 'Mn3HS', 0.76);
+    addRow('b-site', 'Mn4', 0.24);
+    
+    addXRow('O2', 3.0);
+</script>
+
+</body>
+</html>
