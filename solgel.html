@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perovskite Sol-Gel Calculator</title>
+    <style>
+        :root {
+            --bg-color: #f4f4f9;
+            --container-bg: #ffffff;
+            --primary-color: #2c3e50;
+            --accent-color: #5988d4;
+            --danger-color: #e74c3c;
+            --agent-color: #16a085;
+            --xsite-color: #8e44ad;
+            --border-radius: 8px;
+        }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--primary-color);
+            display: flex;
+            justify-content: center;
+            padding: 2rem;
+            margin: 0;
+        }
+        .calculator-container {
+            background: var(--container-bg);
+            padding: 2rem;
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 750px;
+        }
+        h2 { margin-top: 0; border-bottom: 2px solid var(--accent-color); padding-bottom: 0.5rem; }
+        
+        .section-title {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-top: 1.5rem; margin-bottom: 0.5rem; font-weight: bold;
+        }
+        .add-btn {
+            background: #2ecc71; color: white; border: none; padding: 0.3rem 0.8rem;
+            border-radius: 4px; cursor: pointer; font-size: 0.9rem;
+        }
+        .add-btn:hover { background: #27ae60; }
+        .add-agent-btn { background: var(--agent-color); }
+        .add-agent-btn:hover { background: #1abc9c; }
+        .add-xsite-btn { background: var(--xsite-color); }
+        .add-xsite-btn:hover { background: #9b59b6; }
+
+        .row { 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 0.5rem; 
+            margin-bottom: 0.5rem; 
+            align-items: center; 
+            background: #fdfdfd;
+            padding: 0.5rem;
+            border: 1px solid #eee;
+            border-radius: 4px;
+        }
+        select, input[type="number"], input[type="text"] {
+            padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem;
+            box-sizing: border-box;
+        }
+        .element-select { width: 80px; }
+        .precursor-select { flex: 2; min-width: 200px; }
+        .custom-mass { width: 100px; background: #fffde7; border-color: #f1c40f; }
+        .coeff-input, .purity-input { width: 80px; }
+        .x-coeff-input { width: 120px; }
+        
+        .remove-btn {
+            background: var(--danger-color); color: white; border: none;
+            border-radius: 4px; padding: 0.5rem 0.8rem; cursor: pointer; font-weight: bold;
+            margin-left: auto;
+        }
+        
+        .mass-input { margin-top: 1.5rem; border-top: 2px solid #eee; padding-top: 1rem; }
+        .mass-input label { font-weight: bold; display: block; margin-bottom: 0.5rem; }
+        .mass-input input { width: 100%; box-sizing: border-box; font-size: 1.1rem; }
+
+        .calc-btn {
+            width: 100%; padding: 1rem; background-color: var(--accent-color);
+            color: white; border: none; border-radius: 4px; font-size: 1.2rem;
+            cursor: pointer; transition: background-color 0.2s; margin-top: 1.5rem;
+            font-weight: bold;
+        }
+        .calc-btn:hover { background-color: #4a74b5; }
+
+        .formula-display {
+            text-align: center; font-size: 1.4rem; margin-bottom: 1rem;
+            padding: 1rem; background: #eee; border-radius: 4px; font-weight: bold;
+        }
+        .warning {
+            color: var(--danger-color); font-size: 0.9rem; text-align: center;
+            margin-top: 0.5rem; min-height: 1.2rem; font-weight: bold;
+        }
+
+        .results {
+            margin-top: 2rem; padding: 1.5rem; background-color: #f9f0ff;
+            border-radius: var(--border-radius); border: 1px solid #e1bee7; display: none;
+        }
+        .result-item {
+            display: flex; justify-content: space-between;
+            margin-bottom: 0.6rem; font-family: monospace; font-size: 1.1rem;
+        }
+        hr { border: 0; border-top: 1px dashed #ccc; margin: 1.5rem 0; }
+        .agent-header { color: var(--agent-color); font-weight: bold; margin-bottom: 0.5rem; }
+    </style>
+</head>
+<body>
+
+<div class="calculator-container">
+    <h2>Experimental Sol-Gel Calculator for Perovskite</h2>
+    
+    <div class="formula-display" id="formula-display">ABX<sub>3</sub></div>
+    <div class="warning" id="stoichiometry-warning"></div>
+
+    <div class="section-title">
+        <span>A-Site Elements (Total: <span id="a-total">1.00</span>)</span>
+        <button class="add-btn" onclick="addRow('a-site')">+ Add A-Site</button>
+    </div>
+    <div id="a-site-container"></div>
+
+    <div class="section-title">
+        <span>B-Site Elements (Total: <span id="b-total">1.00</span>)</span>
+        <button class="add-btn" onclick="addRow('b-site')">+ Add B-Site</button>
+    </div>
+    <div id="b-site-container"></div>
+
+    <div class="section-title">
+        <span>X-Site Anions (Total: <span id="x-total">3.00</span>)</span>
+        <button class="add-btn add-xsite-btn" onclick="addXRow()">+ Add X-Site</button>
+    </div>
+    <div id="x-site-container"></div>
+
+    <div class="section-title">
+        <span>Chelating Agents (Ratio to Total Metals)</span>
+        <button class="add-btn add-agent-btn" onclick="addAgentRow()">+ Add Agent</button>
+    </div>
+    <div id="agent-container"></div>
+
+    <div class="mass-input">
+        <label for="target-mass">Target Pellet Mass (g):</label>
+        <input type="number" id="target-mass" step="0.1" min="0.1" value="5.0">
+    </div>
+
+    <button class="calc-btn" onclick="calculate()">Calculate Reagents</button>
+
+    <div class="results" id="results-box">
+        <h3>Required Masses:</h3>
+        <div id="output-list"></div>
+    </div>
+</div>
+
+<script>
+    const db = {
+        "Sc": { m_el: 44.956, precursors: [{ name: "Sc(NO3)3·4H2O", m_prec: 303.03 }] },
+        "Y":  { m_el: 88.905, precursors: [{ name: "Y(NO3)3·6H2O", m_prec: 383.01 }] },
+        "La": { m_el: 138.905, precursors: [
+            { name: "La(NO3)3·6H2O", m_prec: 433.01 },
+            { name: "La(CH3COO)3·1.5H2O", m_prec: 343.13 },
+            { name: "La2(CO3)3", m_prec: 457.84 } 
+        ]},
+        "Ce": { m_el: 140.116, precursors: [{ name: "Ce(NO3)3·6H2O", m_prec: 434.22 }] },
+        "Pr": { m_el: 140.907, precursors: [{ name: "Pr(NO3)3·6H2O", m_prec: 435.01 }] },
+        "Nd": { m_el: 144.242, precursors: [{ name: "Nd(NO3)3·6H2O", m_prec: 438.35 }] },
+        "Sm": { m_el: 150.360, precursors: [{ name: "Sm(NO3)3·6H2O", m_prec: 444.47 }] },
+        "Eu": { m_el: 151.964, precursors: [{ name: "Eu(NO3)3·6H2O", m_prec: 446.06 }] },
+        "Gd": { m_el: 157.250, precursors: [{ name: "Gd(NO3)3·6H2O", m_prec: 451.36 }] },
+        "Tb": { m_el: 158.925, precursors: [{ name: "Tb(NO3)3·6H2O", m_prec: 453.03 }] },
+        "Dy": { m_el: 162.500, precursors: [{ name: "Dy(NO3)3·5H2O", m_prec: 438.59 }] },
+        "Ho": { m_el: 164.930, precursors: [{ name: "Ho(NO3)3·5H2O", m_prec: 441.01 }] },
+        "Er": { m_el: 167.259, precursors: [{ name: "Er(NO3)3·5H2O", m_prec: 443.35 }] },
+        "Tm": { m_el: 168.934, precursors: [{ name: "Tm(NO3)3·5H2O", m_prec: 445.02 }] },
+        "Yb": { m_el: 173.045, precursors: [{ name: "Yb(NO3)3·5H2O", m_prec: 449.13 }] },
+        "Lu": { m_el: 174.967, precursors: [{ name: "Lu(NO3)3·6H2O", m_prec: 469.06 }] },
+        
+        "Sr": { m_el: 87.620, precursors: [
+            { name: "Sr(NO3)2", m_prec: 211.63 },
+            { name: "SrCO3", m_prec: 147.63 },
+            { name: "Sr(CH3COO)2·0.5H2O", m_prec: 214.72 }
+        ]},
+        "Ca": { m_el: 40.078, precursors: [
+            { name: "Ca(NO3)2·4H2O", m_prec: 236.15 },
+            { name: "CaCO3", m_prec: 100.09 },
+            { name: "Ca(CH3COO)2·H2O", m_prec: 176.18 }
+        ]},
+        "Ba": { m_el: 137.327, precursors: [
+            { name: "Ba(NO3)2", m_prec: 261.34 },
+            { name: "BaCO3", m_prec: 197.34 },
+            { name: "Ba(CH3COO)2", m_prec: 255.42 }
+        ]},
+        "Na": { m_el: 22.990, precursors: [
+            { name: "NaNO3", m_prec: 84.99 },
+            { name: "Na2CO3", m_prec: 105.99 }
+        ]},
+        "K":  { m_el: 39.098, precursors: [
+            { name: "KNO3", m_prec: 101.10 },
+            { name: "K2CO3", m_prec: 138.21 }
+        ]},
+        "Ag": { m_el: 107.868, precursors: [{ name: "AgNO3", m_prec: 169.87 }] },
+        "Pb": { m_el: 207.200, precursors: [{ name: "Pb(NO3)2", m_prec: 331.20 }, { name: "Pb(CH3COO)2·3H2O", m_prec: 379.33 }] },
+
+        "Ti": { m_el: 47.867, precursors: [{ name: "Ti isopropoxide", m_prec: 284.22 }] },
+        "V":  { m_el: 50.942, precursors: [{ name: "NH4VO3", m_prec: 116.98 }] },
+        "Cr": { m_el: 51.996, precursors: [{ name: "Cr(NO3)3·9H2O", m_prec: 400.15 }] },
+        "Mn": { m_el: 54.938, precursors: [
+            { name: "Mn(NO3)2·4H2O", m_prec: 251.01 },
+            { name: "MnCO3", m_prec: 114.95 },
+            { name: "Mn(CH3COO)2·4H2O", m_prec: 245.09 }
+        ]},
+        "Fe": { m_el: 55.845, precursors: [{ name: "Fe(NO3)3·9H2O", m_prec: 404.00 }] },
+        "Co": { m_el: 58.933, precursors: [
+            { name: "Co(NO3)2·6H2O", m_prec: 291.03 },
+            { name: "Co(CH3COO)2·4H2O", m_prec: 249.08 }
+        ]},
+        "Ni": { m_el: 58.693, precursors: [{ name: "Ni(NO3)2·6H2O", m_prec: 290.79 }] },
+        "Cu": { m_el: 63.546, precursors: [{ name: "Cu(NO3)2·3H2O", m_prec: 241.60 }, { name: "Cu(CH3COO)2·H2O", m_prec: 199.65 }] },
+        "Zn": { m_el: 65.380, precursors: [{ name: "Zn(NO3)2·6H2O", m_prec: 297.49 }] },
+        "Zr": { m_el: 91.224, precursors: [{ name: "ZrO(NO3)2·2H2O", m_prec: 267.26 }] },
+        "Ru": { m_el: 101.070, precursors: [{ name: "Ru(NO)(NO3)3", m_prec: 317.09 }] } 
+    };
+
+    // X-Site (Anions) Atomic Masses
+    const xDb = {
+        "O": 15.999,
+        "F": 18.998,
+        "Cl": 35.45,
+        "Br": 79.904,
+        "I": 126.904,
+        "S": 32.065
+    };
+
+    const agentsDb = {
+        "Citric Acid (Anhydrous)": { mass: 192.12 },
+        "Citric Acid (Monohydrate)": { mass: 210.14 },
+        "EDTA": { mass: 292.24 },
+        "Tartaric Acid": { mass: 150.09 },
+        "Glycine": { mass: 75.07 },
+        "Urea": { mass: 60.06 }
+    };
+
+    const aSiteOptions = ["La", "Ce", "Pr", "Nd", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Y", "Sc", "Sr", "Ca", "Ba", "Na", "K", "Ag", "Pb"];
+    const bSiteOptions = ["Mn", "Co", "Fe", "Ni", "Cu", "Zn", "Ti", "V", "Cr", "Zr", "Ru"];
+    const xSiteOptions = Object.keys(xDb);
+
+    function createSelect(options, defaultVal) {
+        return options.map(opt => `<option value="${opt}" ${opt === defaultVal ? 'selected' : ''}>${opt}</option>`).join('');
+    }
+
+    function addRow(containerId, defaultElem = null, defaultCoeff = 0.0) {
+        const container = document.getElementById(`${containerId}-container`);
+        const row = document.createElement('div');
+        row.className = 'row';
+        
+        const options = containerId === 'a-site' ? aSiteOptions : bSiteOptions;
+        const initialElem = defaultElem || options[0];
+
+        row.innerHTML = `
+            <select class="element-select" onchange="updatePrecursors(this); updateUI()">${createSelect(options, initialElem)}</select>
+            <select class="precursor-select" onchange="toggleCustom(this); updateUI()"></select>
+            <input type="number" class="custom-mass" step="0.01" placeholder="g/mol" title="Custom Molar Mass" style="display: none;" oninput="updateUI()">
+            <input type="number" class="coeff-input" step="0.01" min="0" value="${defaultCoeff}" title="Molar Coefficient (e.g. 0.7)" oninput="updateUI()">
+            <input type="number" class="purity-input" step="0.1" min="1" max="100" value="99.0" title="Purity % (e.g. 99.0)" oninput="updateUI()">
+            <button class="remove-btn" onclick="this.parentElement.remove(); updateUI()">X</button>
+        `;
+        container.appendChild(row);
+        
+        updatePrecursors(row.querySelector('.element-select'));
+        updateUI();
+    }
+
+    function addXRow(defaultElem = "O", defaultCoeff = 3.0) {
+        const container = document.getElementById('x-site-container');
+        const row = document.createElement('div');
+        row.className = 'row';
+
+        row.innerHTML = `
+            <select class="x-element-select" onchange="updateUI()" style="flex: 1">${createSelect(xSiteOptions, defaultElem)}</select>
+            <input type="number" class="x-coeff-input" step="0.01" min="0" value="${defaultCoeff}" title="Molar Coefficient (e.g. 3.0)" oninput="updateUI()">
+            <button class="remove-btn" onclick="this.parentElement.remove(); updateUI()">X</button>
+        `;
+        container.appendChild(row);
+        updateUI();
+    }
+
+    function updatePrecursors(elemSelect) {
+        const row = elemSelect.closest('.row');
+        const precSelect = row.querySelector('.precursor-select');
+        const sym = elemSelect.value;
+        const precursors = db[sym].precursors;
+        
+        let optionsHtml = precursors.map((p, index) => 
+            `<option value="${index}">${p.name} (${p.m_prec})</option>`
+        ).join('');
+        optionsHtml += `<option value="custom">Custom...</option>`;
+        
+        precSelect.innerHTML = optionsHtml;
+        toggleCustom(precSelect);
+    }
+
+    function toggleCustom(precSelect) {
+        const row = precSelect.closest('.row');
+        const customMass = row.querySelector('.custom-mass');
+        if (precSelect.value === 'custom') {
+            customMass.style.display = 'inline-block';
+            precSelect.style.flex = '1';
+        } else {
+            customMass.style.display = 'none';
+            precSelect.style.flex = '2';
+        }
+    }
+
+    function addAgentRow(defaultAgent = "Citric Acid (Anhydrous)", defaultRatio = 1.0) {
+        const container = document.getElementById('agent-container');
+        const row = document.createElement('div');
+        row.className = 'row';
+        
+        const options = Object.keys(agentsDb);
+        row.innerHTML = `
+            <select style="flex:2">${createSelect(options, defaultAgent)}</select>
+            <input type="number" step="0.1" min="0" value="${defaultRatio}" title="Ratio relative to total metal moles" style="flex:1">
+            <button class="remove-btn" onclick="this.parentElement.remove()">X</button>
+        `;
+        container.appendChild(row);
+    }
+
+    function getElements(containerId) {
+        const rows = document.querySelectorAll(`#${containerId}-container .row`);
+        let formulaElements = {};
+        let reagents = [];
+        let total = 0;
+
+        rows.forEach(row => {
+            const sym = row.querySelector('.element-select').value;
+            const val = parseFloat(row.querySelector('.coeff-input').value) || 0;
+            const purity = parseFloat(row.querySelector('.purity-input').value) || 100;
+            const precSelectVal = row.querySelector('.precursor-select').value;
+            
+            let precName = "";
+            let precMass = 0;
+
+            if (precSelectVal === 'custom') {
+                precName = `Custom ${sym} Precursor`;
+                precMass = parseFloat(row.querySelector('.custom-mass').value) || 0;
+            } else {
+                const precData = db[sym].precursors[parseInt(precSelectVal)];
+                precName = precData.name;
+                precMass = precData.m_prec;
+            }
+            
+            if (val > 0) {
+                if (!formulaElements[sym]) formulaElements[sym] = 0;
+                formulaElements[sym] += val; 
+                total += val;
+                
+                reagents.push({
+                    sym, val, purity, precName, precMass
+                });
+            }
+        });
+        return { formulaElements, reagents, total };
+    }
+
+    function getXElements() {
+        const rows = document.querySelectorAll(`#x-site-container .row`);
+        let formulaElements = {};
+        let total = 0;
+
+        rows.forEach(row => {
+            const sym = row.querySelector('.x-element-select').value;
+            const val = parseFloat(row.querySelector('.x-coeff-input').value) || 0;
+            
+            if (val > 0) {
+                if (!formulaElements[sym]) formulaElements[sym] = 0;
+                formulaElements[sym] += val;
+                total += val;
+            }
+        });
+        return { formulaElements, total };
+    }
+
+    function getAgents() {
+        const rows = document.querySelectorAll(`#agent-container .row`);
+        let selectedAgents = [];
+        rows.forEach(row => {
+            const name = row.querySelector('select').value;
+            const ratio = parseFloat(row.querySelector('input[type="number"]').value) || 0;
+            if (ratio > 0) selectedAgents.push({ name, ratio });
+        });
+        return selectedAgents;
+    }
+
+    function updateUI() {
+        const aData = getElements('a-site');
+        const bData = getElements('b-site');
+        const xData = getXElements();
+        
+        document.getElementById('a-total').innerText = aData.total.toFixed(2);
+        document.getElementById('b-total').innerText = bData.total.toFixed(2);
+        document.getElementById('x-total').innerText = xData.total.toFixed(2);
+
+        // Format parts without trailing zeros if they are clean integers (e.g., O3 instead of O3.00)
+        const formatParts = (data) => Object.entries(data).map(([sym, val]) => {
+            const displayVal = Number.isInteger(val) ? val : val.toFixed(2);
+            return `${sym}<sub>${displayVal}</sub>`;
+        }).join('');
+
+        const formulaStr = formatParts(aData.formulaElements) + formatParts(bData.formulaElements) + formatParts(xData.formulaElements);
+        document.getElementById('formula-display').innerHTML = formulaStr || "Add elements";
+
+        const warnBox = document.getElementById('stoichiometry-warning');
+        let warnings = [];
+        if (Math.abs(aData.total - 1.0) > 0.01) warnings.push("A-site sum ≠ 1.0");
+        if (Math.abs(bData.total - 1.0) > 0.01) warnings.push("B-site sum ≠ 1.0");
+        if (Math.abs(xData.total - 3.0) > 0.01) warnings.push("X-site sum ≠ 3.0");
+        
+        if (warnings.length > 0) {
+            warnBox.innerText = "Warning: " + warnings.join(" | ") + " (Intentional vacancy?)";
+        } else {
+            warnBox.innerText = "";
+        }
+    }
+
+    function calculate() {
+        const targetMass = parseFloat(document.getElementById('target-mass').value);
+        const aData = getElements('a-site');
+        const bData = getElements('b-site');
+        const xData = getXElements();
+        const agents = getAgents();
+
+        let targetMolarMass = 0; 
+        
+        // Sum Molar Mass for A and B site metals
+        const allFormulaElements = { ...aData.formulaElements };
+        for (let [sym, val] of Object.entries(bData.formulaElements)) {
+            if (!allFormulaElements[sym]) {
+                allFormulaElements[sym] = val;
+            } else {
+                allFormulaElements[sym] += val;
+            }
+        }
+        for (const [sym, val] of Object.entries(allFormulaElements)) {
+            targetMolarMass += val * db[sym].m_el;
+        }
+
+        // Sum Molar Mass for X-site Anions
+        for (const [sym, val] of Object.entries(xData.formulaElements)) {
+            targetMolarMass += val * xDb[sym];
+        }
+
+        const n_target = targetMass / targetMolarMass;
+        let totalMetalCoeff = aData.total + bData.total;
+        let totalMetalMoles = n_target * totalMetalCoeff;
+        
+        let outputHTML = "";
+
+        const allReagents = [...aData.reagents, ...bData.reagents];
+        allReagents.forEach(reagent => {
+            const decimalPurity = reagent.purity / 100.0; 
+            const massNeeded = (reagent.precMass > 0) 
+                ? (n_target * reagent.val * (reagent.precMass / decimalPurity)) 
+                : 0;
+            
+            outputHTML += `
+                <div class="result-item">
+                    <span>${reagent.precName} (${reagent.purity}%):</span>
+                    <strong>${massNeeded > 0 ? massNeeded.toFixed(4) + ' g' : '<span style="color:red">Missing Mass</span>'}</strong>
+                </div>`;
+        });
+
+        if (agents.length > 0) {
+            outputHTML += `<hr><div class="agent-header">Chelating Agents:</div>`;
+            agents.forEach(agent => {
+                const agentData = agentsDb[agent.name];
+                const massNeeded = totalMetalMoles * agent.ratio * agentData.mass;
+                outputHTML += `
+                    <div class="result-item">
+                        <span>${agent.name} (Ratio ${agent.ratio}):</span>
+                        <strong>${massNeeded.toFixed(4)} g</strong>
+                    </div>`;
+            });
+        }
+
+        document.getElementById('output-list').innerHTML = outputHTML;
+        document.getElementById('results-box').style.display = 'block';
+    }
+
+    // Initialize Defaults
+    addRow('a-site', 'La', 0.7);
+    addRow('a-site', 'Sr', 0.3);
+    addRow('b-site', 'Mn', 1.0);
+    addXRow('O', 3.0);
+    addAgentRow('Citric Acid (Anhydrous)', 1.0);
+</script>
+
+</body>
+</html>
