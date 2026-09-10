@@ -25,4 +25,4 @@ const tools = {
 ## Deployment
 
 The application requires no backend, database, or build steps (like Node/NPM). It can be deployed directly by serving the repository directory via GitHub Pages, Apache, Nginx, or any standard static file server.
-or use it online hosted [here](http://noisyboy.qzz.io/solgel/)
+or use it online hosted [here](https://noisyboy.qzz.io/mtk/)
